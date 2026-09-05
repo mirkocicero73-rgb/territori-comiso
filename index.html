@@ -57,7 +57,7 @@ var blob = null;
 function b2a(b){ return new Uint8Array(b); }
 async function carica(){
   if (blob) return blob;
-  var r = await fetch('app.enc?v=aa1334606ed6', { cache: 'force-cache' });
+  var r = await fetch('app.enc?v=78090c47738a', { cache: 'force-cache' });
   if (!r.ok) throw new Error('rete');
   blob = new Uint8Array(await r.arrayBuffer());
   return blob;
