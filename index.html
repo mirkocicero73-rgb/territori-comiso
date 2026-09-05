@@ -222,6 +222,7 @@ nav.tabs button[aria-current="true"]{color:var(--accent)}
 .rnd{width:44px;height:44px;border-radius:12px;background:var(--surface);border:1px solid var(--line);
   box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink-2)}
 .rnd svg{width:20px;height:20px;stroke-width:1.7}
+.rnd .ago{display:grid;place-items:center;transition:transform .12s linear}
 .rnd.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);width:54px;height:54px;border-radius:16px}
 .rnd.pri svg{width:26px;height:26px;stroke-width:2}
 .rnd.act{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
@@ -390,6 +391,7 @@ table.tt td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-ali
 <g id="i-pin" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></g>
 <g id="i-lock" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></g>
 <g id="i-users" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-5.6 6.5-5.6s6.5 2 6.5 5.6"/><path d="M16.5 5.2a3.4 3.4 0 0 1 0 6.6M18 14.8c2.2.6 3.6 2.4 3.6 5.2"/></g>
+<g id="i-north" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 8.6 13.4 12 11.6l3.4 1.8L12 3Z" fill="currentColor" stroke="none"/><path d="M12 3 8.6 13.4 12 11.6l3.4 1.8L12 3Z"/><path d="M7.5 17.5v3.2M7.5 17.5l3 3.2v-3.2M13.8 17.5h2.8l-2.8 3.2h2.8"/></g>
 <g id="i-steps" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2.3"/><circle cx="18" cy="6" r="2.3"/><path stroke-dasharray="2.6 2.8" d="M7.7 16.3 16.3 7.7"/></g>
 <g id="i-dl" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4 20h16"/></g>
 </defs></svg>
@@ -413,6 +415,8 @@ table.tt td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-ali
       <div id="scalebar"><div></div><span></span></div>
       <div class="map-bot">
         <div id="gpsinfo" style="display:none"></div>
+        <button class="rnd" id="b-north" style="display:none" aria-label="Rimetti la mappa a nord">
+          <span class="ago"><svg viewBox="0 0 24 24"><use href="#i-north"/></svg></span></button>
         <button class="rnd" id="b-layers" aria-label="Livelli"><svg viewBox="0 0 24 24"><use href="#i-layer"/></svg></button>
         <button class="rnd" id="b-cov" aria-label="Segna dove avete cercato"><svg viewBox="0 0 24 24"><use href="#i-steps"/></svg></button>
         <button class="rnd" id="b-gps" aria-label="La mia posizione"><svg viewBox="0 0 24 24"><use href="#i-loc"/></svg></button>
@@ -428,7 +432,8 @@ table.tt td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-ali
         </div>
         <div class="r">
           <div class="t"><b id="cov-count">Nessuna strada</b><span id="cov-hint">Tocca le strade che avete percorso</span></div>
-          <button class="btn gho sm" id="b-covcancel">Annulla</button>
+          <button class="btn sm" id="b-covundo" disabled>Indietro</button>
+          <button class="btn gho sm" id="b-covcancel">Esci</button>
           <button class="btn pri sm" id="b-covok">Salva</button>
         </div>
       </div>
@@ -946,7 +951,7 @@ const FCOND = '"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif';
 const FSANS = '"IBM Plex Sans",system-ui,sans-serif';
 const FMONO = '"IBM Plex Mono",ui-monospace,monospace';
 let W = 0, H = 0, DPR = 1;
-const view = { x:0, y:0, z:0.42 };
+const view = { x:0, y:0, z:0.42, rot:0 };
 (function initView(){ const w = toWorld(36.9490, 14.6070); view.x = w[0]; view.y = w[1]; })();
 
 const layers = { bld:true, sugg:true, aree:true, heat:false, terr:true, cov:true };
@@ -960,22 +965,32 @@ function resize(){
   cv.width = W * DPR; cv.height = H * DPR;
   invalidate();
 }
-const S  = (px, py) => [ (px - view.x) * view.z + W/2, (py - view.y) * view.z + H/2 ];
-const SX = px => (px - view.x) * view.z + W/2;
-const SY = py => (py - view.y) * view.z + H/2;
-const unS = (sx, sy) => [ (sx - W/2) / view.z + view.x, (sy - H/2) / view.z + view.y ];
+/* proiezione con rotazione: CO e SI sono ricalcolati a ogni disegno,
+   così il seno e il coseno non si ripetono per ogni singolo vertice */
+let CO = 1, SI = 0;
+const syncRot = () => { CO = Math.cos(view.rot); SI = Math.sin(view.rot); };
+const S  = (px, py) => { const dx = px - view.x, dy = py - view.y;
+  return [ (dx*CO - dy*SI) * view.z + W/2, (dx*SI + dy*CO) * view.z + H/2 ]; };
+const SX = (px, py) => ((px - view.x)*CO - (py - view.y)*SI) * view.z + W/2;
+const SY = (px, py) => ((px - view.x)*SI + (py - view.y)*CO) * view.z + H/2;
+const unS = (sx, sy) => { const ux = (sx - W/2) / view.z, uy = (sy - H/2) / view.z;
+  return [ view.x + ux*CO + uy*SI, view.y - ux*SI + uy*CO ]; };
+/* con la mappa ruotata la finestra visibile è un rettangolo inclinato:
+   per il taglio serve il rettangolo dritto che lo contiene tutto */
 function viewBox(m){
   const pad = (m || 40) / view.z;
-  return [ view.x - W/2/view.z - pad, view.y - H/2/view.z - pad,
-           view.x + W/2/view.z + pad, view.y + H/2/view.z + pad ];
+  const hw = W/2/view.z, hh = H/2/view.z;
+  const ex = Math.abs(hw*CO) + Math.abs(hh*SI) + pad;
+  const ey = Math.abs(hw*SI) + Math.abs(hh*CO) + pad;
+  return [ view.x - ex, view.y - ey, view.x + ex, view.y + ey ];
 }
 const hit = (b, v) => !(b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 function path(ctx, p, close){
   ctx.beginPath();
-  ctx.moveTo(SX(p[0]), SY(p[1]));
-  for (let i = 2; i < p.length; i += 2) ctx.lineTo(SX(p[i]), SY(p[i+1]));
+  ctx.moveTo(SX(p[0], p[1]), SY(p[0], p[1]));
+  for (let i = 2; i < p.length; i += 2) ctx.lineTo(SX(p[i], p[i+1]), SY(p[i], p[i+1]));
   if (close) ctx.closePath();
 }
 /* larghezza tratto per classe stradale, in px, dipendente dallo zoom */
@@ -984,6 +999,7 @@ const rw = c => Math.max(RW[c][1], Math.min(RW[c][0], RW[c][0] * view.z * 1.5));
 
 function draw(){
   raf = 0; if (!dirty) return; dirty = false;
+  syncRot();
   const g = cx2; g.save(); g.scale(DPR, DPR);
   const v = viewBox();
   g.fillStyle = css('--map-bg'); g.fillRect(0, 0, W, H);
@@ -1075,29 +1091,44 @@ function drawLabels(g, v){
     else if (k === 'village' || k === 'hamlet') { if (view.z > 2) continue; }
     else if (view.z < 0.16 || view.z > 1.6) continue;
     const big = k === 'town' || k === 'village';
-    put(k === 'town' ? p.n.toUpperCase() : p.n, SX(p.x), SY(p.y),
+    put(k === 'town' ? p.n.toUpperCase() : p.n, SX(p.x, p.y), SY(p.x, p.y),
         (big ? '600 ' : '500 ') + (big ? 14 : 11) + 'px ' + FCOND,
         css('--ink-3'), 0);
   }
   /* 2. nomi delle strade, scritti lungo la strada */
   if (view.z > 0.32){
     const maxc = view.z > 1.6 ? 7 : view.z > 1.1 ? 5 : view.z > 0.85 ? 4 : 2;
+    const vicino = view.z > 2.4;                       /* da vicino il nome si ripete lungo la via */
+    const minGap = vicino ? 190 : 240;
     const seen = new Map();
     const list = MAP.roads.filter(f => f.n && f.c <= maxc && hit(f.b, v))
                           .sort((a, b) => a.c - b.c);
     for (const f of list){
-      const n = f.p.length >> 1, mi = (n >> 1) * 2;
-      const x = SX(f.p[mi]), y = SY(f.p[mi + 1]);
-      const prev = seen.get(f.n);
-      if (prev && Math.hypot(prev[0] - x, prev[1] - y) < 240) continue;
-      const j = mi + 2 < f.p.length ? mi + 2 : mi - 2;
-      let a = Math.atan2(SY(f.p[j + 1]) - y, SX(f.p[j]) - x);
+      /* il nome sta sul tratto dritto più lungo: è lì che ci sta comodo e si legge */
+      let bi = -1, bl = 0;
+      for (let i = 2; i < f.p.length; i += 2){
+        const ax = SX(f.p[i-2], f.p[i-1]), ay = SY(f.p[i-2], f.p[i-1]);
+        const bx = SX(f.p[i], f.p[i+1]), by = SY(f.p[i], f.p[i+1]);
+        const l = (bx-ax)*(bx-ax) + (by-ay)*(by-ay);
+        if (l > bl){ bl = l; bi = i; }
+      }
+      if (bi < 0) continue;
+      const ax = SX(f.p[bi-2], f.p[bi-1]), ay = SY(f.p[bi-2], f.p[bi-1]);
+      const bx = SX(f.p[bi], f.p[bi+1]), by = SY(f.p[bi], f.p[bi+1]);
+      const x = (ax+bx)/2, y = (ay+by)/2;
+      const prev = seen.get(f.n) || [];
+      if (prev.some(q => Math.hypot(q[0] - x, q[1] - y) < minGap)) continue;
+      let a = Math.atan2(by - ay, bx - ax);
       if (a > Math.PI/2) a -= Math.PI; if (a < -Math.PI/2) a += Math.PI;
-      const piazza = /^(Piazza|Largo|Belvedere)/.test(f.n);
-      const size = f.c <= 2 ? 11.5 : 10.5;
-      if (put(f.n, x, y, '500 ' + size + 'px ' + FCOND, col, piazza ? 0 : a))
-        seen.set(f.n, [x, y]);
-      if (boxes.length > 130) break;
+      const piazza = /^(Piazza|Largo|Belvedere|Slargo)/.test(f.n);
+      const size = vicino ? (f.c <= 2 ? 13 : 12) : (f.c <= 2 ? 11.5 : 10.5);
+      /* se il tratto è più corto del nome, l'etichetta non ci sta: meglio nessuna */
+      g.font = '500 ' + size + 'px ' + FCOND;
+      if (!piazza && Math.sqrt(bl) < g.measureText(f.n).width + 10) continue;
+      if (put(f.n, x, y, '500 ' + size + 'px ' + FCOND, col, piazza ? 0 : a)){
+        prev.push([x, y]); seen.set(f.n, prev);
+      }
+      if (boxes.length > (vicino ? 200 : 130)) break;
     }
   }
   /* 3. punti di riferimento: chiese, municipio, scuole, mercati, negozi */
@@ -1108,7 +1139,7 @@ function drawLabels(g, v){
                                 POI_RANK[p.k] !== undefined && POI_RANK[p.k] <= maxr)
                         .sort((a, b) => POI_RANK[a.k] - POI_RANK[b.k]);
     for (const p of list){
-      const x = SX(p.x), y = SY(p.y);
+      const x = SX(p.x, p.y), y = SY(p.x, p.y);
       if (x < -40 || y < -20 || x > W + 40 || y > H + 20) continue;
       const r = POI_RANK[p.k];
       g.beginPath(); g.arc(x, y, r === 0 ? 3.2 : 2.5, 0, 6.284);
@@ -1250,7 +1281,7 @@ function drawHeat(g){
   hg.clearRect(0,0,w2,h2);
   const R = Math.max(22, Math.min(90, 40 * Math.max(.35, view.z)));
   for (const p of src){
-    const wd = toWorld(p[0], p[1]), x = SX(wd[0])/2, y = SY(wd[1])/2;
+    const wd = toWorld(p[0], p[1]), x = SX(wd[0], wd[1])/2, y = SY(wd[0], wd[1])/2;
     if (x < -R || y < -R || x > w2+R || y > h2+R) continue;
     const grd = hg.createRadialGradient(x, y, 0, x, y, R);
     const a = .2 * (p[2] || 1);
@@ -1357,7 +1388,7 @@ function drawMarkers(g, v){
     /* cono della direzione di marcia */
     const dir = HEADING != null ? HEADING : (GPS.heading != null ? GPS.heading : null);
     if (dir != null){
-      const a = (dir - 90) * Math.PI / 180, sp = 0.42;
+      const a = (dir - 90) * Math.PI / 180 + view.rot, sp = 0.42;
       g.beginPath(); g.moveTo(s[0], s[1]);
       g.arc(s[0], s[1], 30, a - sp, a + sp); g.closePath();
       const grd = g.createRadialGradient(s[0], s[1], 4, s[0], s[1], 30);
@@ -1374,14 +1405,16 @@ function drawMarkers(g, v){
    perché sul campo sapere se il puntino vale 5 metri o 60 cambia tutto. */
 let GPS = null, SELECTED = null, COVMODE = null;
 let FOLLOW = false, WATCH = 0, HEADING = null;
-const PENDW = new Set(); let PENDP = [];
+const PENDW = new Set(); let PENDP = [], PENDSTACK = [];
 const ptrs = new Map(); let last = null, moved = 0, pinch0 = 0, z0 = 0, tapT = 0;
+let ang0 = 0, rot0 = 0, rotArmed = false;
 cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = 0;
   if (ptrs.size === 1) last = [e.clientX, e.clientY];
   if (ptrs.size === 2){ const a = [...ptrs.values()];
-    pinch0 = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]); z0 = view.z; }
+    pinch0 = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]); z0 = view.z;
+    ang0 = Math.atan2(a[1][1]-a[0][1], a[1][0]-a[0][0]); rot0 = view.rot; rotArmed = false; }
 });
 cv.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)) return;
@@ -1389,13 +1422,27 @@ cv.addEventListener('pointermove', e => {
   if (ptrs.size === 1 && last){
     const dx = e.clientX - last[0], dy = e.clientY - last[1];
     moved += Math.abs(dx) + Math.abs(dy);
-    view.x -= dx / view.z; view.y -= dy / view.z;
+    syncRot();                                      /* il dito spinge lungo lo schermo, non lungo il nord */
+    view.x -= (dx*CO + dy*SI) / view.z;
+    view.y -= (-dx*SI + dy*CO) / view.z;
     if (FOLLOW && moved > 14) setFollow(false);     /* muovi la mappa: smetti di inseguire */
     last = [e.clientX, e.clientY]; onMove(); invalidate();
   } else if (ptrs.size === 2){
     const a = [...ptrs.values()];
     const d = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]);
     if (pinch0 > 0){ setZoom(z0 * d / pinch0); moved += 4; }
+    /* la rotazione parte solo dopo una torsione netta, così il pizzico non la innesca per sbaglio */
+    const ang = Math.atan2(a[1][1]-a[0][1], a[1][0]-a[0][0]);
+    let dA = ang - ang0;
+    while (dA > Math.PI) dA -= 2*Math.PI;
+    while (dA < -Math.PI) dA += 2*Math.PI;
+    if (!rotArmed && Math.abs(dA) > 0.18) rotArmed = true;
+    if (rotArmed){
+      view.rot = rot0 + dA;
+      if (Math.abs(((view.rot % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI)) < 0.07) view.rot = 0;  /* aggancio al nord */
+      if (FOLLOW) setFollow(true);
+      northBtn(); invalidate();
+    }
   }
 });
 function endPtr(e){
@@ -1417,6 +1464,16 @@ cv.addEventListener('wheel', e => {
   e.preventDefault();
   zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0016));
 }, { passive:false });
+
+/* la bussola compare solo quando serve, cioè quando il nord non è più in alto */
+function northBtn(){
+  const b = document.getElementById('b-north'); if (!b) return;
+  const on = Math.abs(view.rot) > 0.01;
+  b.style.display = on ? '' : 'none';
+  const ago = b.querySelector('.ago');
+  if (ago) ago.style.transform = 'rotate(' + (-view.rot) + 'rad)';
+}
+function resetNorth(){ view.rot = 0; northBtn(); invalidate(); }
 
 function setZoom(z){ view.z = Math.max(0.012, Math.min(9, z)); onMove(); invalidate(); }
 function zoomAt(cxp, cyp, f){
@@ -1441,6 +1498,7 @@ function flyTo(lat, lng, z){
 }
 function fitBounds(pts, padPx){
   if (!pts.length) return;
+  view.rot = 0; syncRot(); northBtn();             /* inquadrare qualcosa significa rimetterlo a nord */
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for (const p of pts){ const w = toWorld(p[0], p[1]);
     x0=Math.min(x0,w[0]); x1=Math.max(x1,w[0]); y0=Math.min(y0,w[1]); y1=Math.max(y1,w[1]); }
@@ -1654,18 +1712,30 @@ document.addEventListener('visibilitychange', () => {
 /* ---------------- copertura: segnare dove avete già cercato ---------------- */
 let COVWHOLE = false;
 $('#b-cov').onclick = () => {
-  COVMODE = 'vie'; COVWHOLE = false; PENDW.clear(); PENDP = [];
+  COVMODE = 'vie'; COVWHOLE = false; PENDW.clear(); PENDP = []; PENDSTACK = [];
   document.body.classList.add('covmode');
   $('#cov-whole').setAttribute('aria-pressed', 'false');
   $('#cov-seg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.cm === 'vie'));
   covStatus(); invalidate();
 };
-function covExit(){ COVMODE = null; PENDW.clear(); PENDP = [];
+function covExit(){ COVMODE = null; PENDW.clear(); PENDP = []; PENDSTACK = [];
   document.body.classList.remove('covmode'); invalidate(); }
+/* torna indietro di un tocco: se hai evidenziato la via sbagliata non
+   devi più buttare via tutta la selezione */
+function covUndo(){
+  if (COVMODE === 'area'){ PENDP.pop(); covStatus(); invalidate(); return; }
+  const last = PENDSTACK.pop();
+  if (!last) return toast('Non c’è niente da annullare.');
+  if (last.add) last.ids.forEach(w => PENDW.delete(w));
+  else last.ids.forEach(w => PENDW.add(w));
+  covStatus(); invalidate();
+}
 $('#b-covcancel').onclick = covExit;
+$('#b-covundo').onclick = covUndo;
+$('#b-north').onclick = resetNorth;
 $('#cov-seg').onclick = e => {
   const b = e.target.closest('[data-cm]'); if (!b) return;
-  COVMODE = b.dataset.cm; PENDW.clear(); PENDP = [];
+  COVMODE = b.dataset.cm; PENDW.clear(); PENDP = []; PENDSTACK = [];
   $('#cov-seg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
   $('#cov-whole').style.display = COVMODE === 'vie' ? '' : 'none';
   covStatus(); invalidate();
@@ -1675,6 +1745,8 @@ $('#cov-whole').onclick = e => {
 };
 function covStatus(){
   const c = $('#cov-count'), t = $('#cov-hint');
+  const u = $('#b-covundo');
+  if (u) u.disabled = COVMODE === 'area' ? !PENDP.length : !PENDSTACK.length;
   if (COVMODE === 'vie'){
     const names = new Set();
     for (const f of MAP.roads) if (PENDW.has(f.w) && f.n) names.add(f.n);
@@ -1703,7 +1775,9 @@ function covTap(sx, sy){
   if (!f) return toast('Nessuna strada sotto il dito: avvicina lo zoom e riprova.');
   const targets = (COVWHOLE && f.n) ? MAP.roads.filter(r => r.n === f.n) : [f];
   const on = targets.every(r => PENDW.has(r.w));
+  const ids = targets.map(r => r.w).filter(w => on ? PENDW.has(w) : !PENDW.has(w));
   targets.forEach(r => on ? PENDW.delete(r.w) : PENDW.add(r.w));
+  if (ids.length) PENDSTACK.push({ add: !on, ids });
   covStatus(); invalidate();
 }
 $('#b-covok').onclick = () => {
