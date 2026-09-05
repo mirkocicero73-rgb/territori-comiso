@@ -57,7 +57,7 @@ var blob = null;
 function b2a(b){ return new Uint8Array(b); }
 async function carica(){
   if (blob) return blob;
-  var r = await fetch('app.enc?v=6b5e88dce5e3', { cache: 'force-cache' });
+  var r = await fetch('app.enc?v=aa1334606ed6', { cache: 'force-cache' });
   if (!r.ok) throw new Error('rete');
   blob = new Uint8Array(await r.arrayBuffer());
   return blob;
@@ -74,7 +74,6 @@ async function apri(codice, silenzioso){
       base, { name:'AES-GCM', length:256 }, false, ['decrypt']);
     var plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv: iv }, key, ct);
     var app = JSON.parse(new TextDecoder().decode(plain));
-    try { localStorage.setItem(MEM, codice); } catch(e){}
     avvia(app);
   } catch(e) {
     go.disabled = false;
@@ -97,11 +96,8 @@ function avvia(app){
 }
 go.onclick = function(){ if (pw.value) apri(pw.value, false); };
 pw.onkeydown = function(e){ if (e.key === 'Enter' && pw.value) apri(pw.value, false); };
-(async function(){
-  var salvato = null; try { salvato = localStorage.getItem(MEM); } catch(e){}
-  if (salvato && await apri(salvato, true)) return;
-  pw.focus();
-})();
+try { localStorage.removeItem(MEM); } catch(e){}   /* nessuna memoria del codice */
+pw.focus();
 </script>
 </body>
 </html>
