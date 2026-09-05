@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Territori">
 <meta name="theme-color" content="#6E2545">
 <meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Cache-Control" content="no-store">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
@@ -48,7 +49,7 @@ body{height:100%;margin:0;-webkit-font-smoothing:antialiased}
   <button id="go">Apri</button>
   <div class="err" id="er"></div>
   <div class="note">Chi tratta i dati e come: <a href="informativa/">informativa privacy</a>.<br>
-  Versione <b>31b59dcf8c13</b> · 05/09/2026 16:17</div>
+  Versione <b>31b59dcf8c13</b> · 05/09/2026 20:37</div>
 </div></div>
 <script>
 var SALT_LEN = 16, IV_LEN = 12, ITER = 310000, MEM = 'territori.comiso.k';
@@ -69,6 +70,23 @@ async function pulisci(){
   } catch(e){}
 }
 pulisci();
+/* Ultimo anello: anche la pagina puo' restare nella cache di Safari, e in quel
+   caso nessun aggiornamento arriverebbe mai. Si chiede quindi al sito qual e'
+   l'ultima versione, senza passare da nessuna cache; se e' diversa da questa,
+   si ricarica con un indirizzo nuovo, che la cache non puo' avere. */
+var VERSIONE = '31b59dcf8c13';
+(async function aggiorna(){
+  try {
+    const q = new URLSearchParams(location.search);
+    const r = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const nuova = (await r.text()).trim();
+    if (!/^[a-f0-9]{6,}$/.test(nuova) || nuova === VERSIONE) return;
+    if (q.get('v') === nuova) return;            /* gia' ricaricato: non insistere */
+    er.textContent = 'Nuova versione, aggiorno…';
+    location.replace('./?v=' + nuova);
+  } catch(e){}
+})();
 var blob = null;
 
 function b2a(b){ return new Uint8Array(b); }
@@ -110,6 +128,23 @@ function avvia(app){
   document.body.innerHTML = app.b;
   var sc = document.createElement('script'); sc.textContent = app.j; document.body.appendChild(sc);
   pulisci();
+/* Ultimo anello: anche la pagina puo' restare nella cache di Safari, e in quel
+   caso nessun aggiornamento arriverebbe mai. Si chiede quindi al sito qual e'
+   l'ultima versione, senza passare da nessuna cache; se e' diversa da questa,
+   si ricarica con un indirizzo nuovo, che la cache non puo' avere. */
+var VERSIONE = '31b59dcf8c13';
+(async function aggiorna(){
+  try {
+    const q = new URLSearchParams(location.search);
+    const r = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const nuova = (await r.text()).trim();
+    if (!/^[a-f0-9]{6,}$/.test(nuova) || nuova === VERSIONE) return;
+    if (q.get('v') === nuova) return;            /* gia' ricaricato: non insistere */
+    er.textContent = 'Nuova versione, aggiorno…';
+    location.replace('./?v=' + nuova);
+  } catch(e){}
+})();
 }
 go.onclick = function(){ if (pw.value) apri(pw.value, false); };
 pw.onkeydown = function(e){ if (e.key === 'Enter' && pw.value) apri(pw.value, false); };
