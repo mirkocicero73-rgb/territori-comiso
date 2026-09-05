@@ -6,7 +6,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Territori">
-<meta name="theme-color" content="#6E2545">
+<!-- Il colore della barra di sistema segue lo sfondo dell'app, non l'accento:
+     nella zona della notch non deve comparire nessuna fascia colorata. -->
+<meta name="theme-color" content="#F6F3EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131110" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="Cache-Control" content="no-store">
 <link rel="manifest" href="manifest.webmanifest">
@@ -49,7 +52,7 @@ body{height:100%;margin:0;-webkit-font-smoothing:antialiased}
   <button id="go">Apri</button>
   <div class="err" id="er"></div>
   <div class="note">Chi tratta i dati e come: <a href="informativa/">informativa privacy</a>.<br>
-  Versione <b>31b59dcf8c13</b> · 05/09/2026 20:37</div>
+  Versione <b>aa442ce0ff92</b> · 05/09/2026 22:32</div>
 </div></div>
 <script>
 var SALT_LEN = 16, IV_LEN = 12, ITER = 310000, MEM = 'territori.comiso.k';
@@ -74,7 +77,7 @@ pulisci();
    caso nessun aggiornamento arriverebbe mai. Si chiede quindi al sito qual e'
    l'ultima versione, senza passare da nessuna cache; se e' diversa da questa,
    si ricarica con un indirizzo nuovo, che la cache non puo' avere. */
-var VERSIONE = '31b59dcf8c13';
+var VERSIONE = 'aa442ce0ff92';
 (async function aggiorna(){
   try {
     const q = new URLSearchParams(location.search);
@@ -92,7 +95,7 @@ var blob = null;
 function b2a(b){ return new Uint8Array(b); }
 async function carica(){
   if (blob) return blob;
-  var r = await fetch('app.enc?v=31b59dcf8c13', { cache: 'force-cache' });
+  var r = await fetch('app.enc?v=aa442ce0ff92', { cache: 'force-cache' });
   if (!r.ok) throw new Error('rete');
   blob = new Uint8Array(await r.arrayBuffer());
   return blob;
@@ -132,7 +135,7 @@ function avvia(app){
    caso nessun aggiornamento arriverebbe mai. Si chiede quindi al sito qual e'
    l'ultima versione, senza passare da nessuna cache; se e' diversa da questa,
    si ricarica con un indirizzo nuovo, che la cache non puo' avere. */
-var VERSIONE = '31b59dcf8c13';
+var VERSIONE = 'aa442ce0ff92';
 (async function aggiorna(){
   try {
     const q = new URLSearchParams(location.search);
