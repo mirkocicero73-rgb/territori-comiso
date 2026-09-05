@@ -52,7 +52,7 @@ body{height:100%;margin:0;-webkit-font-smoothing:antialiased}
   <button id="go">Apri</button>
   <div class="err" id="er"></div>
   <div class="note">Chi tratta i dati e come: <a href="informativa/">informativa privacy</a>.<br>
-  Versione <b>22f15cdabd5d</b> · 06/09/2026 00:10</div>
+  Versione <b>a29f7963a9e1</b> · 06/09/2026 00:38</div>
 </div></div>
 <script>
 var SALT_LEN = 16, IV_LEN = 12, ITER = 310000, MEM = 'territori.comiso.k';
@@ -77,7 +77,7 @@ pulisci();
    caso nessun aggiornamento arriverebbe mai. Si chiede quindi al sito qual e'
    l'ultima versione, senza passare da nessuna cache; se e' diversa da questa,
    si ricarica con un indirizzo nuovo, che la cache non puo' avere. */
-var VERSIONE = '22f15cdabd5d';
+var VERSIONE = 'a29f7963a9e1';
 (async function aggiorna(){
   try {
     const q = new URLSearchParams(location.search);
@@ -95,7 +95,7 @@ var blob = null;
 function b2a(b){ return new Uint8Array(b); }
 async function carica(){
   if (blob) return blob;
-  var r = await fetch('app.enc?v=22f15cdabd5d', { cache: 'force-cache' });
+  var r = await fetch('app.enc?v=a29f7963a9e1', { cache: 'force-cache' });
   if (!r.ok) throw new Error('rete');
   blob = new Uint8Array(await r.arrayBuffer());
   return blob;
@@ -135,7 +135,7 @@ function avvia(app){
    caso nessun aggiornamento arriverebbe mai. Si chiede quindi al sito qual e'
    l'ultima versione, senza passare da nessuna cache; se e' diversa da questa,
    si ricarica con un indirizzo nuovo, che la cache non puo' avere. */
-var VERSIONE = '22f15cdabd5d';
+var VERSIONE = 'a29f7963a9e1';
 (async function aggiorna(){
   try {
     const q = new URLSearchParams(location.search);
