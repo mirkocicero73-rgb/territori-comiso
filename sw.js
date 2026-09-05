@@ -1,8 +1,8 @@
 /* Il documento viene sempre chiesto alla rete per primo: così una versione
    nuova (o la schermata di sblocco) compare subito, non al secondo avvio.
    Il resto sta in cache, e l'app funziona anche senza campo. */
-const V = 'territori-comiso-535413b64cee';
-const SHELL = ['./', './index.html', './app.enc?v=535413b64cee', './manifest.webmanifest',
+const V = 'territori-comiso-f3e5293ac260';
+const SHELL = ['./', './index.html', './app.enc?v=f3e5293ac260', './manifest.webmanifest',
                './informativa/', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
