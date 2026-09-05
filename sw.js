@@ -1,7 +1,8 @@
-/* Service worker: l'app parte dalla cache (istantanea, anche senza rete) e
-   in sottofondo scarica la versione nuova, che entra in vigore alla riapertura. */
-const V = 'territori-comiso-v2';
-const SHELL = ['./', './index.html', './app.enc', './manifest.webmanifest',
+/* Il documento viene sempre chiesto alla rete per primo: così una versione
+   nuova (o la schermata di sblocco) compare subito, non al secondo avvio.
+   Il resto sta in cache, e l'app funziona anche senza campo. */
+const V = 'territori-comiso-6b5e88dce5e3';
+const SHELL = ['./', './index.html', './app.enc?v=6b5e88dce5e3', './manifest.webmanifest',
                './informativa/', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -15,10 +16,21 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.method !== 'GET' || new URL(r.url).origin !== location.origin) return;
+
+  if (r.mode === 'navigate' || r.destination === 'document'){
+    e.respondWith(
+      fetch(r).then(res => {
+        if (res && res.ok) caches.open(V).then(c => c.put(r, res.clone()));
+        return res;
+      }).catch(() => caches.match(r).then(m => m || caches.match('./index.html')))
+    );
+    return;
+  }
   e.respondWith(caches.open(V).then(async cache => {
-    const hit = await cache.match(r, { ignoreSearch: true });
-    const net = fetch(r).then(res => { if (res && res.ok) cache.put(r, res.clone()); return res; })
-                        .catch(() => null);
-    return hit || (await net) || cache.match('./index.html');
+    const hit = await cache.match(r);
+    if (hit) return hit;
+    const res = await fetch(r).catch(() => null);
+    if (res && res.ok) cache.put(r, res.clone());
+    return res || new Response('', { status: 504 });
   }));
 });
