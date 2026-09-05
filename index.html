@@ -47,17 +47,34 @@ body{height:100%;margin:0;-webkit-font-smoothing:antialiased}
   <input id="pw" type="password" inputmode="numeric" autocomplete="current-password" enterkeyhint="go">
   <button id="go">Apri</button>
   <div class="err" id="er"></div>
-  <div class="note">Chi tratta i dati e come: <a href="informativa/">informativa privacy</a>.</div>
+  <div class="note">Chi tratta i dati e come: <a href="informativa/">informativa privacy</a>.<br>
+  Versione <b>31b59dcf8c13</b> · 05/09/2026 16:17</div>
 </div></div>
 <script>
 var SALT_LEN = 16, IV_LEN = 12, ITER = 310000, MEM = 'territori.comiso.k';
 var pw = document.getElementById('pw'), go = document.getElementById('go'), er = document.getElementById('er');
+/* Niente piu' cache dell'applicazione: qualsiasi service worker rimasto da
+   installazioni precedenti viene disiscritto e le sue cache cancellate, cosi'
+   ogni apertura prende sempre la versione appena pubblicata. */
+async function pulisci(){
+  try {
+    if ('serviceWorker' in navigator){
+      const rs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map(function(r){ return r.unregister(); }));
+    }
+    if (window.caches){
+      const ks = await caches.keys();
+      await Promise.all(ks.map(function(k){ return caches.delete(k); }));
+    }
+  } catch(e){}
+}
+pulisci();
 var blob = null;
 
 function b2a(b){ return new Uint8Array(b); }
 async function carica(){
   if (blob) return blob;
-  var r = await fetch('app.enc?v=f3e5293ac260', { cache: 'force-cache' });
+  var r = await fetch('app.enc?v=31b59dcf8c13', { cache: 'force-cache' });
   if (!r.ok) throw new Error('rete');
   blob = new Uint8Array(await r.arrayBuffer());
   return blob;
@@ -92,7 +109,7 @@ function avvia(app){
   var st = document.createElement('style'); st.textContent = app.s; document.head.appendChild(st);
   document.body.innerHTML = app.b;
   var sc = document.createElement('script'); sc.textContent = app.j; document.body.appendChild(sc);
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+  pulisci();
 }
 go.onclick = function(){ if (pw.value) apri(pw.value, false); };
 pw.onkeydown = function(e){ if (e.key === 'Enter' && pw.value) apri(pw.value, false); };

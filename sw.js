@@ -1,36 +1,16 @@
-/* Il documento viene sempre chiesto alla rete per primo: così una versione
-   nuova (o la schermata di sblocco) compare subito, non al secondo avvio.
-   Il resto sta in cache, e l'app funziona anche senza campo. */
-const V = 'territori-comiso-f3e5293ac260';
-const SHELL = ['./', './index.html', './app.enc?v=f3e5293ac260', './manifest.webmanifest',
-               './informativa/', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
-
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys()
-    .then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k))))
-    .then(() => self.clients.claim()));
-});
-self.addEventListener('fetch', e => {
-  const r = e.request;
-  if (r.method !== 'GET' || new URL(r.url).origin !== location.origin) return;
-
-  if (r.mode === 'navigate' || r.destination === 'document'){
-    e.respondWith(
-      fetch(r).then(res => {
-        if (res && res.ok) caches.open(V).then(c => c.put(r, res.clone()));
-        return res;
-      }).catch(() => caches.match(r).then(m => m || caches.match('./index.html')))
-    );
-    return;
-  }
-  e.respondWith(caches.open(V).then(async cache => {
-    const hit = await cache.match(r);
-    if (hit) return hit;
-    const res = await fetch(r).catch(() => null);
-    if (res && res.ok) cache.put(r, res.clone());
-    return res || new Response('', { status: 504 });
-  }));
+/* Interruttore di spegnimento.
+   Il vecchio service worker teneva in cache l'applicazione e poteva servire
+   versioni superate: era la ragione per cui gli aggiornamenti non arrivavano
+   sul telefono. Questo file lo sostituisce, cancella tutte le cache, si
+   disiscrive e ricarica le finestre aperte. Non intercetta piu' nulla:
+   ogni richiesta va sempre in rete. */
+self.addEventListener('install', function(){ self.skipWaiting(); });
+self.addEventListener('activate', function(e){
+  e.waitUntil((async function(){
+    const ks = await caches.keys();
+    await Promise.all(ks.map(function(k){ return caches.delete(k); }));
+    await self.registration.unregister();
+    const cs = await self.clients.matchAll({ type: 'window' });
+    cs.forEach(function(c){ try { c.navigate(c.url); } catch(err){} });
+  })());
 });
